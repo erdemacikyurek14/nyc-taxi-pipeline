@@ -35,3 +35,4 @@ mlflow.db
 Thumbs.db
 .idea/
 .vscode/
+temp_plots/
