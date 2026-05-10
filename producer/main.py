@@ -37,6 +37,8 @@ def json_default(value):
     if isinstance(value, np.integer):
         return int(value)
     if isinstance(value, np.floating):
+        if np.isnan(value):
+            return None
         return float(value)
     if isinstance(value, float) and math.isnan(value):
         return None
@@ -51,6 +53,13 @@ def get_float_env(name: str, default: float) -> float:
     return float(os.getenv(name, str(default)))
 
 
+def get_bool_env(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
 def normalize_value(value: Any) -> Any:
     if value is None:
         return None
@@ -63,6 +72,8 @@ def normalize_value(value: Any) -> Any:
     if isinstance(value, np.integer):
         return int(value)
     if isinstance(value, np.floating):
+        if np.isnan(value):
+            return None
         return float(value)
     if isinstance(value, bytes):
         return value.decode("utf-8", errors="replace")
@@ -126,6 +137,29 @@ def publish_batch(producer: KafkaProducer, topic: str, records: list[dict[str, A
     return published
 
 
+def dry_run_batch(topic: str, records: list[dict[str, Any]], key_field: str, rows_seen: int) -> int:
+    sample = records[0] if records else {}
+    sample_payload = json.dumps(sample, default=json_default)[:500]
+    logging.info(
+        "Dry-run batch: topic=%s records=%s first_key=%s total_rows=%s",
+        topic,
+        len(records),
+        message_key(sample, key_field),
+        rows_seen + len(records),
+    )
+    logging.debug("Dry-run first payload sample: %s", sample_payload)
+    return len(records)
+
+
+def validate_settings(max_rows: int, batch_size: int, sleep_seconds: float):
+    if batch_size <= 0:
+        raise ValueError("PRODUCER_BATCH_SIZE must be greater than 0")
+    if max_rows < 0:
+        raise ValueError("PRODUCER_MAX_ROWS must be 0 or greater")
+    if sleep_seconds < 0:
+        raise ValueError("PRODUCER_SLEEP_SECONDS must be 0 or greater")
+
+
 def main():
     configure_logging()
     signal.signal(signal.SIGINT, request_stop)
@@ -138,6 +172,9 @@ def main():
     batch_size = get_int_env("PRODUCER_BATCH_SIZE", 500)
     sleep_seconds = get_float_env("PRODUCER_SLEEP_SECONDS", 0.2)
     key_field = os.getenv("PRODUCER_KEY_FIELD", "PULocationID")
+    dry_run = get_bool_env("PRODUCER_DRY_RUN", False)
+
+    validate_settings(max_rows=max_rows, batch_size=batch_size, sleep_seconds=sleep_seconds)
 
     if not os.path.exists(parquet_path):
         raise FileNotFoundError(
@@ -146,16 +183,17 @@ def main():
         )
 
     logging.info(
-        "Starting Parquet replay: file=%s topic=%s bootstrap=%s max_rows=%s batch_size=%s delay=%s",
+        "Starting Parquet replay: file=%s topic=%s bootstrap=%s max_rows=%s batch_size=%s delay=%s dry_run=%s",
         parquet_path,
         topic,
         bootstrap_servers,
         "all" if max_rows <= 0 else max_rows,
         batch_size,
         sleep_seconds,
+        dry_run,
     )
 
-    producer = build_producer(bootstrap_servers)
+    producer = None if dry_run else build_producer(bootstrap_servers)
     pending_records = []
     rows_sent = 0
 
@@ -164,20 +202,28 @@ def main():
             pending_records.append(record)
 
             if len(pending_records) >= batch_size:
-                rows_sent += publish_batch(producer, topic, pending_records, key_field)
-                logging.info("Published %s rows to topic '%s'", rows_sent, topic)
+                if dry_run:
+                    rows_sent += dry_run_batch(topic, pending_records, key_field, rows_sent)
+                else:
+                    rows_sent += publish_batch(producer, topic, pending_records, key_field)
+                    logging.info("Published %s rows to topic '%s'", rows_sent, topic)
                 pending_records = []
                 time.sleep(sleep_seconds)
 
         if pending_records and not STOP_REQUESTED:
-            rows_sent += publish_batch(producer, topic, pending_records, key_field)
-            logging.info("Published %s rows to topic '%s'", rows_sent, topic)
+            if dry_run:
+                rows_sent += dry_run_batch(topic, pending_records, key_field, rows_sent)
+            else:
+                rows_sent += publish_batch(producer, topic, pending_records, key_field)
+                logging.info("Published %s rows to topic '%s'", rows_sent, topic)
 
     finally:
-        producer.flush()
-        producer.close()
+        if producer is not None:
+            producer.flush()
+            producer.close()
 
-    logging.info("Finished publishing %s rows to topic '%s'", rows_sent, topic)
+    action = "validated" if dry_run else "published"
+    logging.info("Finished: %s %s rows for topic '%s'", action, rows_sent, topic)
 
 
 if __name__ == "__main__":

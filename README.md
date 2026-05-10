@@ -71,7 +71,22 @@ Start infrastructure:
 docker compose up -d kafka zookeeper mlflow spark
 ```
 
-Run producer:
+### Producer Dry Run
+
+Use dry-run mode before starting Kafka publishing. It reads the Parquet file, normalizes rows to JSON-compatible records, and validates batching without connecting to Kafka.
+
+Docker one-shot:
+
+```powershell
+docker compose --profile pipeline build producer
+docker compose --profile pipeline run --rm --no-deps -e PRODUCER_DRY_RUN=true -e PRODUCER_MAX_ROWS=1000 -e PRODUCER_BATCH_SIZE=250 producer
+```
+
+Use `-e LOG_LEVEL=DEBUG` to print a short sample JSON payload in dry-run logs.
+
+### Publish To Kafka
+
+After dry-run succeeds, publish records to Kafka:
 
 ```powershell
 docker compose --profile pipeline run --rm producer
@@ -84,6 +99,7 @@ PRODUCER_MAX_ROWS=10000       # use 0 to replay all rows
 PRODUCER_BATCH_SIZE=500       # Kafka publish/flush batch size
 PRODUCER_SLEEP_SECONDS=0.2    # delay between batches for pseudo-streaming
 PRODUCER_KEY_FIELD=PULocationID
+PRODUCER_DRY_RUN=false        # true validates Parquet/JSON without Kafka publish
 ```
 
 Run Spark jobs from the Spark container:
