@@ -12,25 +12,9 @@ import seaborn as sns
 import os
 
 # --- 1. VERİ OKUMA VE HAZIRLIK ---
-# NOT: Arkadaşın veriyi hazırladığında buradaki dosya yolunu güncelleyeceksin.
-# Şimdilik test edebilmen için kod hata vermesin diye rastgele küçük bir veri seti oluşturuyoruz.
-# GERÇEK VERİ GELDİĞİNDE ŞU SATIRI AÇ:
 # df = pd.read_parquet("arkadasinin_hazirladigi_veri.parquet")
 
 print("Veri yükleniyor...")
-# (Aşağıdaki kısım test içindir, gerçek veri gelince silinebilir)
-np.random.seed(42)
-n_samples = 5000
-df = pd.DataFrame({
-    'trip_distance': np.random.uniform(0.5, 20.0, n_samples),
-    'pickup_hour': np.random.randint(0, 24, n_samples),
-    'day_of_week': np.random.randint(0, 7, n_samples),
-    'is_weekend': np.random.randint(0, 2, n_samples),
-    'passenger_count': np.random.randint(1, 5, n_samples),
-})
-# Rastgele mantıklı bir ücret (fare_amount) formülü uyduruyoruz
-df['fare_amount'] = 3.0 + (df['trip_distance'] * 2.5) + (df['pickup_hour'] * 0.5) + np.random.normal(0, 2, n_samples)
-# (Test verisi sonu)
 
 # Hedef değişken (y) ve özellikler (X)
 X = df.drop('fare_amount', axis=1)
@@ -47,7 +31,7 @@ models = {
     "Decision_Tree": DecisionTreeRegressor(max_depth=10, random_state=42),
     "Random_Forest": RandomForestRegressor(n_estimators=50, max_depth=10, random_state=42),
     "Gradient_Boosted_Trees": GradientBoostingRegressor(n_estimators=50, random_state=42),
-    "Generalized_Linear_Ridge": Ridge(alpha=1.0)  # GLR yerine Scikit-Learn'de Ridge kullanıyoruz
+    "Generalized_Linear_Ridge": Ridge(alpha=1.0)
 }
 
 # --- 3. MLFLOW ENTEGRASYONU VE EĞİTİM ---
