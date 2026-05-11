@@ -16,27 +16,15 @@ st.markdown(
 # --- 1. VERİ YÜKLEME (EDA İÇİN) ---
 @st.cache_data
 def load_data():
-    # NOT: Gerçek veri gelince burayı pd.read_parquet("arkadasinin_verisi.parquet") yapacağız.
-    # Şimdilik model dosyamızdaki gibi test verisi üretiyoruz.
-    np.random.seed(42)
-    n_samples = 5000
-    df = pd.DataFrame({
-        'trip_distance': np.random.uniform(0.5, 20.0, n_samples),
-        'pickup_hour': np.random.randint(0, 24, n_samples),
-        'day_of_week': np.random.randint(0, 7, n_samples),
-        'passenger_count': np.random.randint(1, 5, n_samples),
-    })
-    df['fare_amount'] = 3.0 + (df['trip_distance'] * 2.5) + (df['pickup_hour'] * 0.5) + np.random.normal(0, 2,
-                                                                                                         n_samples)
+    #  df = pd.read_parquet("arkadasinin_verisi.parquet") yapacağız.
     return df
-
 
 df = load_data()
 
 # Düzenli görünüm için sekmeler (Tabs)
 tab1, tab2, tab3 = st.tabs(["📊 Keşifsel Veri Analizi (EDA)", "🤖 Model Karşılaştırmaları", "📈 Regresyon Analizleri"])
 
-# --- SEKME 1: EDA VE VERİ DAĞILIMI (PDF ZORUNLU İSTERİ) ---
+# --- SEKME 1: EDA VE VERİ DAĞILIMI ---
 with tab1:
     st.header("Veri Dağılımı ve Trendler")
     col1, col2 = st.columns(2)
@@ -70,7 +58,7 @@ with tab1:
         ax.set_xlabel("Haftanın Günü (0=Pzt, 6=Paz)")
         st.pyplot(fig)
 
-# --- SEKME 2: MODEL KARŞILAŞTIRMALARI (PDF ZORUNLU İSTERİ) ---
+# --- SEKME 2: MODEL KARŞILAŞTIRMALARI ---
 with tab2:
     st.header("Makine Öğrenmesi Model Performansları")
     st.markdown("Proje kapsamında eğitilen 5 farklı regresyon modelinin performans karşılaştırması.")
@@ -95,7 +83,7 @@ with tab2:
     else:
         st.warning("Feature Importance grafiği bulunamadı. Lütfen önce model_training.py dosyasını çalıştırın.")
 
-# --- SEKME 3: REGRESYON ANALİZLERİ (PDF ZORUNLU İSTERİ) ---
+# --- SEKME 3: REGRESYON ANALİZLERİ ---
 with tab3:
     st.header("Model Detayları (Gerçek vs Tahmin & Artıklar)")
     selected_model = st.selectbox("Detaylarını görmek istediğiniz modeli seçin:", models_list)
