@@ -7,6 +7,9 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 2181 || exit 1"]
       interval: 10s
@@ -31,6 +34,8 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
     healthcheck:
       test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
       interval: 10s
@@ -109,10 +114,12 @@ services:
       - ./:/app
     working_dir: /app
     command: >
-      python -m streamlit run ml_pipeline/dashboard.py
-      --server.port 8501
-      --server.address 0.0.0.0
-      --server.headless true
-      --browser.gatherUsageStats false
+      sh -c "pip install --no-cache-dir streamlit scikit-learn seaborn pandas numpy matplotlib &&
+             python -m streamlit run ml_pipeline/dashboard.py --server.port 8501 --server.address 0.0.0.0 --server.headless true --browser.gatherUsageStats false"
     profiles:
       - dashboard
+
+volumes:
+  zookeeper_data:
+  zookeeper_log:
+  kafka_data:
