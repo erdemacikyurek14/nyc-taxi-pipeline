@@ -94,3 +94,25 @@ services:
     working_dir: /app
     profiles:
       - pipeline
+
+  dashboard:
+    image: nyc-taxi-spark:local
+    container_name: nyc-taxi-dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      DELTA_GOLD_PATH: /app/data/delta/gold/fare_features
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MPLCONFIGDIR: /tmp/matplotlib
+      GIT_PYTHON_REFRESH: quiet
+    volumes:
+      - ./:/app
+    working_dir: /app
+    command: >
+      python -m streamlit run ml_pipeline/dashboard.py
+      --server.port 8501
+      --server.address 0.0.0.0
+      --server.headless true
+      --browser.gatherUsageStats false
+    profiles:
+      - dashboard
